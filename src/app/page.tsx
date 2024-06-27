@@ -88,6 +88,7 @@ export default function Home() {
 
           return (
             <ProductCard
+              key={id}
               currency={currency_code}
               image_url={image_url}
               name={name}
