@@ -1,95 +1,105 @@
+"use client";
 import Image from "next/image";
 import styles from "./page.module.css";
+import { initializePaddle, Paddle } from "@paddle/paddle-js";
+import { useEffect, useState } from "react";
 
+type ProductCardProps = {
+  productId: string;
+  priceId: string;
+  name: string;
+  price: number;
+  currency: string;
+  image_url: string;
+  description: string;
+  onBuyNow: (priceId: string) => void;
+};
+
+const ProductCard = ({
+  productId,
+  priceId,
+  name,
+  price,
+  currency,
+  image_url,
+  onBuyNow,
+  description,
+}: ProductCardProps) => {
+  return (
+    <div id={productId} className={styles.card}>
+      <Image alt={name} src={image_url} fill={true} />
+      <h2 className={styles.content}>{name}</h2>
+      <p className={styles.content}>{description}</p>
+      <p className={styles.content}>
+        {currency} {price}
+      </p>
+      <button onClick={() => onBuyNow(priceId)} className={styles.btn}>
+        Buy Now
+      </button>
+    </div>
+  );
+};
 export default function Home() {
+  const [paddle, setPaddle] = useState<Paddle>();
+  const [products, setProducts] = useState<Record<string, unknown>[]>([]);
+
+  useEffect(() => {
+    initializePaddle({
+      environment: "sandbox",
+      token: "test_faf198e6d24bc288d7a798cefbc",
+    }).then((paddleInstance: Paddle | undefined) => {
+      if (paddleInstance) {
+        setPaddle(paddleInstance);
+      }
+    });
+
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then(({ products }) => {
+        setProducts(products);
+      })
+      .catch((e) => console.error(e));
+  }, []);
+
+  const openCheckout = (priceId: string) => {
+    const itemsList = [
+      {
+        priceId,
+        quantity: 1,
+      },
+    ];
+    paddle?.Checkout.open({
+      items: itemsList,
+      settings: {
+        displayMode: "overlay",
+        theme: "light",
+        locale: "en",
+      },
+    });
+  };
+
   return (
     <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
+      <section className={styles.products}>
+        {products?.map((product) => {
+          const { id, description, name, image_url, prices } = product as any;
+          const priceId = prices[0].id;
+          const { amount, currency_code } = prices[0].unit_price;
+
+          return (
+            <ProductCard
+              currency={currency_code}
+              image_url={image_url}
+              name={name}
+              onBuyNow={openCheckout}
+              price={+amount / 100}
+              priceId={priceId}
+              productId={id}
+              description={description}
             />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+          );
+        })}
+      </section>
     </main>
   );
 }
